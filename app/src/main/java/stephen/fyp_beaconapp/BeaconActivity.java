@@ -6,15 +6,26 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 
+import org.altbeacon.beacon.Beacon;
 import org.altbeacon.beacon.BeaconConsumer;
 import org.altbeacon.beacon.BeaconManager;
 import org.altbeacon.beacon.BeaconParser;
-import org.altbeacon.beacon.MonitorNotifier;
+import org.altbeacon.beacon.RangeNotifier;
 import org.altbeacon.beacon.Region;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.IOException;
+import java.util.Collection;
+
+import okhttp3.*;
 
 public class BeaconActivity extends AppCompatActivity implements BeaconConsumer {
 
     protected static final String TAG = "MonitoringActivity";
+    public static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+    public static OkHttpClient client;
     private BeaconManager beaconManager;
 
     @Override
@@ -23,6 +34,9 @@ public class BeaconActivity extends AppCompatActivity implements BeaconConsumer 
         setContentView(R.layout.activity_beacon);
 
         requestPermissions(new String[] {Manifest.permission.ACCESS_COARSE_LOCATION}, 1234);
+
+        client = new OkHttpClient();
+
 
         beaconManager = BeaconManager.getInstanceForApplication(this);
 
@@ -38,28 +52,98 @@ public class BeaconActivity extends AppCompatActivity implements BeaconConsumer 
         super.onDestroy();
         beaconManager.unbind(this);
     }
+
+    String post(String url, String json) throws IOException {
+        RequestBody body = RequestBody.create(JSON, json);
+        Request request = new Request.Builder()
+                .url(url)
+                .post(body)
+                .build();
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                e.printStackTrace();
+            }
+
+            @Override
+            public void onResponse(Call call, final Response response) throws IOException {
+                if (!response.isSuccessful()) {
+                    throw new IOException("Unexpected code " + response);
+                } else {
+                    // do something wih the result
+                }
+            }
+        });
+        return "T";
+    }
+
     @Override
     public void onBeaconServiceConnect() {
 
-        beaconManager.addMonitorNotifier(new MonitorNotifier() {
+        beaconManager.addRangeNotifier(new RangeNotifier() {
             @Override
-            public void didEnterRegion(Region region) {
-                Log.i(TAG, "I just saw an beacon for the first time!");
-            }
+            public void didRangeBeaconsInRegion(Collection<Beacon> beacons, Region region) {
 
-            @Override
-            public void didExitRegion(Region region) {
-                Log.i(TAG, "I no longer see an beacon");
-            }
+                String url = "http://127.0.0.1:8080/";
+                JSONArray jArray = new JSONArray();
 
-            @Override
-            public void didDetermineStateForRegion(int state, Region region) {
-                Log.i(TAG, "I have just switched from seeing/not seeing beacons: "+state);
+                for (Beacon beacon: beacons){
+                    //Log.i(TAG, "Beacon seen UID: "+ beacon.getId1()+" RSS: "+ beacon.getRssi());
+
+                    try {
+                        JSONObject jsonObject = new JSONObject();
+                        jsonObject.put("UID", beacon.getId1());
+                        jsonObject.put("RSS", beacon.getRssi());
+
+                        post(url, jsonObject.toString());
+
+                        jArray.put(jsonObject);
+
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    } catch (IOException e) {
+                        Log.i(TAG, e.getMessage());
+                        e.printStackTrace();
+                    }
+                }
+
+
+                Log.i(TAG, "Start of Array");
+                for (int i=0; i < jArray.length(); i++){
+                    try{
+                        JSONObject testObj = jArray.getJSONObject(i);
+
+                        Log.i(TAG, "Beacon seen UID: "+ testObj.get("UID") +" RSS: "+ testObj.get("RSS"));
+                    }
+                    catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+                }
+                Log.i(TAG, "End of Array");
+
+                /*
+                for (Beacon beacon : beacons) {
+
+                    try {
+                        JSONObject jsonObject = new JSONObject();
+                        jsonObject.put("UID", beacon.getId1().toInt());
+                        jsonObject.put("RSS", beacon.getRssi());
+
+                        jsonArray.put(jsonObject);
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+
+
+                }
+                */
+
             }
+            
         });
 
         try {
-            beaconManager.startMonitoringBeaconsInRegion(new Region("myMonitoringUniqueId", null, null, null));
+            beaconManager.startRangingBeaconsInRegion(new Region("myMonitoringUniqueId", null, null, null));
         } catch (RemoteException e) {    }
     }
 }
