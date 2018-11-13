@@ -5,6 +5,7 @@ import android.os.RemoteException;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.widget.TextView;
 
 import org.altbeacon.beacon.Beacon;
 import org.altbeacon.beacon.BeaconConsumer;
@@ -33,6 +34,7 @@ public class BeaconActivity extends AppCompatActivity implements BeaconConsumer 
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_beacon);
 
+
         requestPermissions(new String[] {Manifest.permission.ACCESS_COARSE_LOCATION}, 1234);
 
         client = new OkHttpClient();
@@ -53,28 +55,35 @@ public class BeaconActivity extends AppCompatActivity implements BeaconConsumer 
         beaconManager.unbind(this);
     }
 
-    String post(String url, String json) throws IOException {
+
+    void post(String json) throws IOException {
+
         RequestBody body = RequestBody.create(JSON, json);
+
         Request request = new Request.Builder()
-                .url(url)
+                .url("http://192.168.1.7:8080/")
+                .addHeader("Content-Type", "application/json")
                 .post(body)
                 .build();
+
         client.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(Call call, IOException e) {
+                Log.i(TAG, e.getMessage());
                 e.printStackTrace();
             }
 
             @Override
             public void onResponse(Call call, final Response response) throws IOException {
                 if (!response.isSuccessful()) {
+                    Log.i(TAG, response.message());
                     throw new IOException("Unexpected code " + response);
                 } else {
                     // do something wih the result
                 }
             }
         });
-        return "T";
+        //Log.i(TAG, response.message());
     }
 
     @Override
@@ -83,9 +92,13 @@ public class BeaconActivity extends AppCompatActivity implements BeaconConsumer 
         beaconManager.addRangeNotifier(new RangeNotifier() {
             @Override
             public void didRangeBeaconsInRegion(Collection<Beacon> beacons, Region region) {
+                final TextView TxtView = (TextView) findViewById(R.id.textViewId);
 
-                String url = "http://127.0.0.1:8080/";
                 JSONArray jArray = new JSONArray();
+
+                if (beacons.size()>0){
+                    TxtView.setText("");
+                }
 
                 for (Beacon beacon: beacons){
                     //Log.i(TAG, "Beacon seen UID: "+ beacon.getId1()+" RSS: "+ beacon.getRssi());
@@ -95,20 +108,27 @@ public class BeaconActivity extends AppCompatActivity implements BeaconConsumer 
                         jsonObject.put("UID", beacon.getId1());
                         jsonObject.put("RSS", beacon.getRssi());
 
-                        post(url, jsonObject.toString());
+                        TxtView.append(jsonObject.toString());
+
+                        post(jsonObject.toString());
 
                         jArray.put(jsonObject);
 
                     } catch (JSONException e) {
                         e.printStackTrace();
                     } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    /*
+                    catch (IOException e) {
                         Log.i(TAG, e.getMessage());
                         e.printStackTrace();
                     }
+                    */
                 }
 
 
-                Log.i(TAG, "Start of Array");
+                //Log.i(TAG, "Start of Array");
                 for (int i=0; i < jArray.length(); i++){
                     try{
                         JSONObject testObj = jArray.getJSONObject(i);
@@ -119,7 +139,7 @@ public class BeaconActivity extends AppCompatActivity implements BeaconConsumer 
                         e.printStackTrace();
                     }
                 }
-                Log.i(TAG, "End of Array");
+                //Log.i(TAG, "End of Array");
 
                 /*
                 for (Beacon beacon : beacons) {
