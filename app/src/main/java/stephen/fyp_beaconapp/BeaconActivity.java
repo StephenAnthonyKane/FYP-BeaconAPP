@@ -56,12 +56,12 @@ public class BeaconActivity extends AppCompatActivity implements BeaconConsumer 
     }
 
 
-    void post(String json) throws IOException {
+    void post(String url,String json) throws IOException {
 
         RequestBody body = RequestBody.create(JSON, json);
 
         Request request = new Request.Builder()
-                .url("http://192.168.1.7:8080/")
+                .url("http://"+url+"/")
                 .addHeader("Content-Type", "application/json")
                 .post(body)
                 .build();
@@ -93,70 +93,39 @@ public class BeaconActivity extends AppCompatActivity implements BeaconConsumer 
             @Override
             public void didRangeBeaconsInRegion(Collection<Beacon> beacons, Region region) {
                 final TextView TxtView = (TextView) findViewById(R.id.textViewId);
-
-                JSONArray jArray = new JSONArray();
-
                 if (beacons.size()>0){
                     TxtView.setText("");
                 }
 
-                for (Beacon beacon: beacons){
-                    //Log.i(TAG, "Beacon seen UID: "+ beacon.getId1()+" RSS: "+ beacon.getRssi());
 
+                JSONObject objectToSend = new JSONObject();
+                JSONArray jArray = new JSONArray();
+                //Log.i(TAG, "Beacon seen UID: "+ beacon.getId1()+" RSS: "+ beacon.getRssi());
+                for (Beacon beacon: beacons)
                     try {
-                        JSONObject jsonObject = new JSONObject();
-                        jsonObject.put("UID", beacon.getId1());
-                        jsonObject.put("RSS", beacon.getRssi());
+                        JSONObject beaconObject = new JSONObject();
+                        beaconObject.put("UID", beacon.getId1());
+                        beaconObject.put("RSS", beacon.getRssi());
+                        beaconObject.put("TimeStamp", System.currentTimeMillis());
+                        jArray.put(beaconObject);
 
-                        TxtView.append(jsonObject.toString());
+                        TxtView.append(beaconObject.toString());
 
-                        post(jsonObject.toString());
-
-                        jArray.put(jsonObject);
 
                     } catch (JSONException e) {
                         e.printStackTrace();
-                    } catch (IOException e) {
-                        e.printStackTrace();
                     }
-                    /*
-                    catch (IOException e) {
-                        Log.i(TAG, e.getMessage());
-                        e.printStackTrace();
-                    }
-                    */
+                try {
+                    objectToSend.put( "Beacons", jArray);
+
+                    String url="192.168.1.7";
+
+                    post(url, objectToSend.toString());
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
                 }
-
-
-                //Log.i(TAG, "Start of Array");
-                for (int i=0; i < jArray.length(); i++){
-                    try{
-                        JSONObject testObj = jArray.getJSONObject(i);
-
-                        Log.i(TAG, "Beacon seen UID: "+ testObj.get("UID") +" RSS: "+ testObj.get("RSS"));
-                    }
-                    catch (JSONException e) {
-                        e.printStackTrace();
-                    }
-                }
-                //Log.i(TAG, "End of Array");
-
-                /*
-                for (Beacon beacon : beacons) {
-
-                    try {
-                        JSONObject jsonObject = new JSONObject();
-                        jsonObject.put("UID", beacon.getId1().toInt());
-                        jsonObject.put("RSS", beacon.getRssi());
-
-                        jsonArray.put(jsonObject);
-                    } catch (JSONException e) {
-                        e.printStackTrace();
-                    }
-
-
-                }
-                */
 
             }
             
