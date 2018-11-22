@@ -5,6 +5,8 @@ import android.os.RemoteException;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.widget.EditText;
+import android.widget.Switch;
 import android.widget.TextView;
 
 import org.altbeacon.beacon.Beacon;
@@ -93,42 +95,46 @@ public class BeaconActivity extends AppCompatActivity implements BeaconConsumer 
             @Override
             public void didRangeBeaconsInRegion(Collection<Beacon> beacons, Region region) {
                 final TextView TxtView = (TextView) findViewById(R.id.textViewId);
-                if (beacons.size()>0){
-                    TxtView.setText("");
-                }
+                EditText edit = (EditText)findViewById(R.id.editTextId);
+                Switch s = (Switch) findViewById(R.id.SwitchID);
+
+                if (s.isChecked()) {
+
+                    String inputURL = edit.getText().toString();
+
+                    if (beacons.size() > 0) {
+                        TxtView.setText("");
+                        JSONObject objectToSend = new JSONObject();
+                        JSONArray jArray = new JSONArray();
+                        //Log.i(TAG, "Beacon seen UID: "+ beacon.getId1()+" RSS: "+ beacon.getRssi());
+                        for (Beacon beacon : beacons)
+                            try {
+                                JSONObject beaconObject = new JSONObject();
+                                beaconObject.put("UID", beacon.getId1());
+                                beaconObject.put("RSS", beacon.getRssi());
+                                beaconObject.put("TimeStamp", System.currentTimeMillis());
+                                jArray.put(beaconObject);
+
+                                TxtView.append(beaconObject.toString());
 
 
-                JSONObject objectToSend = new JSONObject();
-                JSONArray jArray = new JSONArray();
-                //Log.i(TAG, "Beacon seen UID: "+ beacon.getId1()+" RSS: "+ beacon.getRssi());
-                for (Beacon beacon: beacons)
-                    try {
-                        JSONObject beaconObject = new JSONObject();
-                        beaconObject.put("UID", beacon.getId1());
-                        beaconObject.put("RSS", beacon.getRssi());
-                        beaconObject.put("TimeStamp", System.currentTimeMillis());
-                        jArray.put(beaconObject);
+                            } catch (JSONException e) {
+                                e.printStackTrace();
+                            }
+                        try {
+                            objectToSend.put("Beacons", jArray);
 
-                        TxtView.append(beaconObject.toString());
+                            String url = inputURL + ":8080";
 
-
-                    } catch (JSONException e) {
-                        e.printStackTrace();
+                            post(url, objectToSend.toString());
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
                     }
-                try {
-                    objectToSend.put( "Beacons", jArray);
-
-                    String url="192.168.1.7";
-
-                    post(url, objectToSend.toString());
-                } catch (JSONException e) {
-                    e.printStackTrace();
-                } catch (IOException e) {
-                    e.printStackTrace();
                 }
-
             }
-            
         });
 
         try {
