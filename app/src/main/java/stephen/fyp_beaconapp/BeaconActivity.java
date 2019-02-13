@@ -5,6 +5,7 @@ import android.os.RemoteException;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
 import android.widget.EditText;
 import android.widget.Switch;
 import android.widget.TextView;
@@ -57,13 +58,42 @@ public class BeaconActivity extends AppCompatActivity implements BeaconConsumer 
         beaconManager.unbind(this);
     }
 
+    protected void runfunc(View view) {
 
-    void post(String url,String json) throws IOException {
+        JSONObject objectToSend = new JSONObject();
+        JSONArray jArray = new JSONArray();
+        //Log.i(TAG, "Beacon seen UID: "+ beacon.getId1()+" RSS: "+ beacon.getRssi());
+        for (int i = 0; i < 6; i++){
+            try {
+                JSONObject beaconObject = new JSONObject();
+                beaconObject.put("UID", i);
+                beaconObject.put("RSS", i);
+                jArray.put(beaconObject);
+
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        }
+        try {
+            objectToSend.put("Beacons", jArray);
+
+            post(objectToSend.toString());
+        } catch (JSONException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+
+    void post(String json) throws IOException {
 
         RequestBody body = RequestBody.create(JSON, json);
 
+        String url = "http://sbsrv1.cs.nuim.ie/fyp/skane/RequestHandler.py";
         Request request = new Request.Builder()
-                .url("http://"+url+"/")
+                .url(url)
                 .addHeader("Content-Type", "application/json")
                 .post(body)
                 .build();
@@ -95,24 +125,21 @@ public class BeaconActivity extends AppCompatActivity implements BeaconConsumer 
             @Override
             public void didRangeBeaconsInRegion(Collection<Beacon> beacons, Region region) {
                 final TextView TxtView = (TextView) findViewById(R.id.textViewId);
-                EditText edit = (EditText)findViewById(R.id.editTextId);
                 Switch s = (Switch) findViewById(R.id.SwitchID);
 
                 if (s.isChecked()) {
-
-                    String inputURL = edit.getText().toString();
 
                     if (beacons.size() > 0) {
                         TxtView.setText("");
                         JSONObject objectToSend = new JSONObject();
                         JSONArray jArray = new JSONArray();
-                        //Log.i(TAG, "Beacon seen UID: "+ beacon.getId1()+" RSS: "+ beacon.getRssi());
-                        for (Beacon beacon : beacons)
+
+                        for (Beacon beacon : beacons) {
+                            Log.i(TAG, "Beacon seen UID: " + beacon.getId1() + " RSS: " + beacon.getRssi());
                             try {
                                 JSONObject beaconObject = new JSONObject();
                                 beaconObject.put("UID", beacon.getId1());
                                 beaconObject.put("RSS", beacon.getRssi());
-                                beaconObject.put("TimeStamp", System.currentTimeMillis());
                                 jArray.put(beaconObject);
 
                                 TxtView.append(beaconObject.toString());
@@ -121,16 +148,15 @@ public class BeaconActivity extends AppCompatActivity implements BeaconConsumer 
                             } catch (JSONException e) {
                                 e.printStackTrace();
                             }
-                        try {
-                            objectToSend.put("Beacons", jArray);
+                            try {
+                                objectToSend.put("Beacons", jArray);
 
-                            String url = inputURL + ":8080";
-
-                            post(url, objectToSend.toString());
-                        } catch (JSONException e) {
-                            e.printStackTrace();
-                        } catch (IOException e) {
-                            e.printStackTrace();
+                                post(objectToSend.toString());
+                            } catch (JSONException e) {
+                                e.printStackTrace();
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
                         }
                     }
                 }
